@@ -1,0 +1,273 @@
+{% comment %} Source: https://gist.github.com/carolineschnapp/9122054 If you are not on a collection page, do define which collection to use in the order form. Use the following assign statement, replace 'your-collection-handle-here' with your collection handle. Use the assign statement outside of this comment block at the top of your template. {% endcomment %} {% assign collection = collections.All %} {% paginate collection.products by 100 %}
+
+<div id="select_product">
+    <div class="select_holder">
+        <select id="collections_select">
+            <option> Select Category </option>
+            {% for collection in collections %}
+            <option value="{{collection.handle}}">{{collection.title}}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="select_holder">
+        <select id="product_select">
+            <option value="0"> Select Product </option>
+            {% for product in collection.products %} {% if product.available %} {% for variant in product.variants %} {% if variant.available %}
+            <option value="{{ product.handle}}">{{product.title}}</option>
+            {% endif %} {% endfor %} {% endif %} {% endfor %}
+
+        </select>
+    </div>
+    <form id="addToCart">
+        <div class="select_holder_1">
+            <select id="variant" name="id">
+                <option value="0">Select Variant</option>
+            </select>
+        </div>
+        <div class="select_holder_1">
+            <input type="text" name="quantity" id="quantity" value="1" placeholder="Enter Quantity" /> </div>
+
+        <input type="button" value="Add To Cart" id="add_to_cart" />
+        <h5><span id="error_message"></span></h5>
+    </form>
+</div>
+
+{% if collection.products_count > 0 %}
+<div>
+    <h1>Order Form</h1>
+
+</div>
+{% else %}
+<h1>{% if template contains 'page' %}{{ page.title }}{% else %}{{ collection.title }}{% endif %}</h1> {% endif %} {% if template contains 'page' and page.content.size > 0 %}
+<div class="rte">
+    {{ page.content }}
+</div>
+{% elsif collection.description.size > 0 %}
+<div class="rte">
+    {{ collection.description }}
+</div>
+{% endif %}
+
+<div id="modified_cart">
+
+    {% if cart.item_count > 0 %}
+
+    <form action="/cart" method="post" novalidate class="cart table-wrap">
+        <table class="cart-table full table--responsive table_main">
+            <thead class="cart__row cart__header-labels">
+                <tr>
+                    <th class="text-center">Product Image</th>
+                    <th class="text-center">Name</th>
+                    <th class="text-center">{{ 'cart.label.price' | t }}</th>
+                    <th class="text-center">{{ 'cart.label.quantity' | t }}</th>
+                    <th class="text-right">{{ 'cart.label.total' | t }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cart.items %}
+                <tr class="cart__row table__section">
+                    <td data-label="{{ 'customer.order.product' | t }}">
+                        <a href="{{ item.url | within: collections.all }}">
+
+                            <img src="{{ item | img_url: 'medium' }}" alt="{{ item.title | escape }}" />
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ item.url }}" class="h4">
+                {{ item.product.title }}
+              </a> {% unless item.variant.title contains 'Default' %}
+                        <br>
+                        <small>{{ item.variant.title }}</small> {% endunless %} {% if settings.cart_vendor_enable %}
+                        <p>{{ item.vendor }}</p>
+                        {% endif %} {% comment %} Optional, loop through custom product line items if available For more info on line item properties, visit: - http://docs.shopify.com/support/your-store/products/how-do-I-collect-additional-information-on-the-product-page-Like-for-a-monogram-engraving-or-customization {% endcomment %} {% assign property_size = item.properties | size %} {% if property_size > 0 %} {% for p in item.properties %} {% unless p.last == blank %} {{ p.first }}: {% comment %} Check if there was an uploaded file associated {% endcomment %} {% if p.last contains '/uploads/' %}
+                        <a href="{{ p.last }}">{{ p.last | split: '/' | last }}</a> {% else %} {{ p.last }} {% endif %}
+
+                        <br> {% endunless %} {% endfor %} {% endif %}
+
+                    </td>
+                    <td data-label="{{ 'cart.label.price' | t }}">
+                        <span class="h3">
+                {{ item.price | money }}
+              </span>
+                    </td>
+                    <td data-label="{{ 'cart.label.quantity' | t }}">
+                        <input type="number" name="updates[]" id="updates_{{ item.key }}" data-id="{{ item.key }}" value="{{ item.quantity }}" min="0" class="item_quantity" data-variant="{{item.id}}">
+                    </td>
+                    <td data-label="{{ 'cart.label.total' | t }}" class="text-right">
+                        {% if item.original_line_price != item.line_price %}
+                        <span class="cart-item__original-price"><s>{{ item.original_line_price | money }}</s></span> {% endif %}
+                        <span class="h3">
+                {{ item.line_price | money }}
+              </span> {% for discount in item.discounts %}
+                        <span class="cart-item__discount">{{ discount.title }}</span> {% endfor %}
+                    </td>
+                    <td>
+                        <a href="" class="remove_item" data-id="{{item.id}}">
+                            <small>{{ 'cart.general.remove' | t }}</small>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="grid cart__row">
+            {% if settings.cart_notes_enable %}
+            <div class="grid__item two-thirds small--one-whole">
+                <label for="CartSpecialInstructions">{{ 'cart.general.note' | t }}</label>
+                <textarea name="note" class="input-full" id="CartSpecialInstructions">{{ cart.note }}</textarea>
+            </div>
+            {% endif %}
+            <div class="grid__item text-right{% if settings.cart_notes_enable %} one-third small--one-whole{% endif %}">
+                <p>
+                    <span class="cart__subtotal-title">{{ 'cart.general.subtotal' | t }}</span>
+                    <span class="h3 cart__subtotal">{{ cart.total_price | money }}</span>
+                </p>
+                {% if cart.total_discounts > 0 %} {% assign savings = cart.total_discounts | money %}
+                <p>
+                    <span class="cart-subtotal__savings"><em>{{ 'cart.general.savings_html' | t: price: savings }}</em></span>
+                </p>
+                {% endif %}
+
+                <button type="submit" name="checkout" class="btn">Order</button>
+            </div>
+        </div>
+    </form>
+    {% else %} {% comment %} The cart is empty {% endcomment %}
+    <p>No product added to order form</p>
+    <p>Please add products from above list or {{ 'cart.general.continue_browsing_html' | t }}</p>
+    {% endif %}
+</div>
+
+{% endpaginate %} {% if collection.products_count > 0 %}
+<script>
+    jQuery(function($) {
+        $('table .quantity:first').focus();
+        $('[max]').change(function() {
+            var max = parseInt($(this).attr('max'), 10);
+            var value = parseInt($(this).val(), 10) || 0;
+            if (value > max) {
+                alert('We only have ' + max + ' of this item in stock');
+                $(this).val(max);
+            }
+        });
+    });
+    $(document).ready(function() {
+        $("#collections_select").change(function() {
+            //alert($(this).val());
+            options_to_add = "<option> Select Product </option>";
+            jQuery.ajax({
+                url: '/collections/' + $(this).val() + '/products.json',
+                method: 'get',
+                complete: function(products) {
+                    //console.log(products);
+
+                }
+            });
+            jQuery.getJSON('/collections/' + $(this).val() + '/products.json', function(product) {
+                //console.log(product);
+                $.each(product.products, function(i, item) {
+                    options_to_add = options_to_add + "<option value='" + item.handle + "'>" + item.title + "</option>";
+                });
+                $("#product_select").html(options_to_add);
+
+            });
+        });
+        $("#product_select").change(function(e) {
+            var html_to_update = "";
+
+            // alert($(this).val());                         
+            jQuery.getJSON('/products/' + $(this).val() + '.js', function(product) {
+
+                html_to_update += "<select>";
+
+                $.each(product.variants, function(i, item) {
+
+                    if (product.variants.length > 1) {
+                        variant_title = item.title;
+                    } else {
+                        variant_title = "No variants available";
+                    }
+                    html_to_update = html_to_update + "<option value='" + item.id + "'>" + variant_title + "</option>"
+                });
+
+                $("#variant").html(html_to_update);
+
+            });
+
+        });
+        $("#add_to_cart").click(function() {
+            $("#error_message").html("");
+            if ($("#variant").val() == 0) {
+                //alert("Please select a Product");
+                $("#error_message").html("Please select a Product");
+                return;
+            }
+
+            $.ajax({
+                url: "/cart/add.js",
+                method: 'post',
+                data: $('#addToCart').serialize(),
+                complete: function(result) {
+
+                    getCart();
+                    //$('#product_select').prop('selectedIndex',0);
+                    $("#addToCart").trigger('reset');
+                },
+            });
+
+        });
+
+        $(".remove_item").on("click", function(e) {
+            e.preventDefault();
+            tr_to_remove = $(this);
+            id_to_remove = $(this).data("id");
+            object_to_remove = new Object();
+            object_to_remove[id_to_remove] = 0;
+
+            $.ajax({
+                url: "/cart/update.js",
+                method: 'post',
+                data: {
+                    updates: object_to_remove
+                },
+                complete: function(result) {
+
+                    getCart();
+                },
+            });
+
+        });
+
+        $(".item_quantity").on("change", function(e) {
+
+            id = $(this).data("id");
+            quantity_to_update = $(this).val();
+            $.ajax({
+                url: "/cart/change.js",
+                method: 'post',
+                data: {
+                    quantity: quantity_to_update,
+                    id: id
+                },
+                complete: function(result) {
+
+                    getCart();
+                }
+            });
+
+        });
+    });
+
+    function getCart() {
+
+        $.ajax({
+            url: "/cart?view=alternatecart",
+            method: 'get',
+            success: function(result) {
+                $("#modified_cart").html(result);
+            }
+        });
+
+    }
+</script>
+{% endif %}
